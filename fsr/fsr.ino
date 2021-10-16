@@ -1,3 +1,4 @@
+#include <FastLED.h>
 #include <Joystick.h>
 #include <inttypes.h>
 
@@ -5,6 +6,34 @@
     !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__)
   #define CAN_AVERAGE
 #endif
+
+
+#define LED_PIN     10
+#define NUM_LEDS    24
+#define LED_PER_ARROW (NUM_LEDS/4)
+
+CRGB leds[NUM_LEDS];
+#define WHITE_LIMIT  64
+CRGB WHITE = CRGB(WHITE_LIMIT,WHITE_LIMIT,WHITE_LIMIT);
+CRGB RED = CRGB(255,0,0);
+CRGB BLUE = CRGB(0,0,255);
+
+CRGB defaultColors[4] = {BLUE, RED, BLUE, RED};
+uint8_t ledOrder[4] = {2, 3, 0, 1};
+bool needLEDUpdate = false;
+
+void UpdateLEDColor(uint8_t button_num, bool pressed)
+{
+  button_num = ledOrder[button_num-1]; //remap to clockwise around pad.
+  CRGB off = defaultColors[button_num];
+  CRGB color = pressed ? WHITE : off;
+  int start_index = (button_num) * LED_PER_ARROW;
+  int end_index = start_index + LED_PER_ARROW;
+  for (int i = start_index; i < end_index; i++)
+  {
+    leds[i] = color;
+  }
+}
 
 Joystick_ Joystick; //create the joystick
 // Use the Joystick library for Teensy
@@ -14,10 +43,15 @@ void ButtonStart() {
 }
 void ButtonPress(uint8_t button_num) {
   Joystick.pressButton(button_num);
+  UpdateLEDColor(button_num, true);
+  needLEDUpdate=true;
 }
 void ButtonRelease(uint8_t button_num) {
   Joystick.releaseButton(button_num);
+  UpdateLEDColor(button_num, false);
+  needLEDUpdate=true;
 }
+
 
 
 // Default threshold value for each of the sensors.
@@ -169,7 +203,7 @@ class SensorState {
     if (sensor_index == SIZE_MAX) {
       return;
     }
-
+    
     // If we're above the threshold, turn the individual sensor on.
     if (cur_value >= user_threshold + kPaddingWidth) {
       individual_states_[sensor_index] = SensorState::ON;
@@ -514,6 +548,14 @@ unsigned long lastSend = 0;
 long loopTime = -1;
 
 void setup() {
+  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
+
+  for (int i = 1; i < 5; i++)
+  {
+    UpdateLEDColor(i, false);
+  }
+
+  FastLED.show();
   serialProcessor.Init(kBaudRate);
   ButtonStart();
   for (size_t i = 0; i < kNumSensors; ++i) {
@@ -540,6 +582,10 @@ void loop() {
     lastSend = startMicros;
     
     Joystick.sendState();
+    if (needLEDUpdate) {
+      FastLED.show();
+      needLEDUpdate = false;
+    }
     
   }
 

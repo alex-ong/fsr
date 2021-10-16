@@ -28,6 +28,7 @@ Follow a guide like [fsr-pad-guide](https://github.com/Sereni/fsr-pad-guide) or 
 1. Install [Arduino IDE](https://www.arduino.cc/en/software) (skip this if you're using OSX as it's included in Teensyduino)
 1. Install [Teensyduino](https://www.pjrc.com/teensy/td_download.html) and get it connected to your Teensy and able to push firmware via Arduino IDE
 1. In Arduino IDE, `Sketch` > `Include Library` > `Add .Zip Library` > `ArduinoJoystickLibrary-2.0.7.zip`
+1. In Arduino IDE, `Sketch` > `Include Library` > `Add .Zip Library` > `FastLED-3.4.0.zip`
 1. In Arduinio IDE, set the `Tools` > `USB Type` to `Serial + Keyboard + Mouse + Joystick` (or `Serial + Keyboard + Mouse`)
 1. In Arduinio IDE, set the `Tools` > `Board` to your microcontroller (e.g. `Teensy 4.0`)
 1. In Arduinio IDE, set the `Tools` > `Port` to select the serial port for the plugged in microcontroller (e.g. `COM5` or `/dev/something`)
