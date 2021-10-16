@@ -1,3 +1,4 @@
+#include <Joystick.h>
 #include <inttypes.h>
 
 #if !defined(__AVR_ATmega32U4__) && !defined(__AVR_ATmega328P__) && \
@@ -5,34 +6,19 @@
   #define CAN_AVERAGE
 #endif
 
-#ifdef CORE_TEENSY
-  // Use the Joystick library for Teensy
-  void ButtonStart() {
-    // Use Joystick.begin() for everything that's not Teensy 2.0.
-    #ifndef __AVR_ATmega32U4__
-      Joystick.begin();
-    #endif
-    Joystick.useManualSend(true);
-  }
-  void ButtonPress(uint8_t button_num) {
-    Joystick.button(button_num, 1);
-  }
-  void ButtonRelease(uint8_t button_num) {
-    Joystick.button(button_num, 0);
-  }
-#else
-  #include <Keyboard.h>
-  // And the Keyboard library for Arduino
-  void ButtonStart() {
-    Keyboard.begin();
-  }
-  void ButtonPress(uint8_t button_num) {
-    Keyboard.press('a' + button_num - 1);
-  }
-  void ButtonRelease(uint8_t button_num) {
-    Keyboard.release('a' + button_num - 1);
-  }
-#endif
+Joystick_ Joystick; //create the joystick
+// Use the Joystick library for Teensy
+void ButtonStart() {
+  // Use Joystick.begin() for everything that's not Teensy 2.0.
+  Joystick.begin(false);
+}
+void ButtonPress(uint8_t button_num) {
+  Joystick.pressButton(button_num);
+}
+void ButtonRelease(uint8_t button_num) {
+  Joystick.releaseButton(button_num);
+}
+
 
 // Default threshold value for each of the sensors.
 const int16_t kDefaultThreshold = 1000;
@@ -552,9 +538,9 @@ void loop() {
 
   if (willSend) {
     lastSend = startMicros;
-    #ifdef CORE_TEENSY
-        Joystick.send_now();
-    #endif
+    
+    Joystick.sendState();
+    
   }
 
   if (loopTime == -1) {
