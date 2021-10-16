@@ -18,8 +18,10 @@ CRGB WHITE = CRGB(WHITE_LIMIT,WHITE_LIMIT,WHITE_LIMIT);
 CRGB RED = CRGB(255,0,0);
 CRGB BLUE = CRGB(0,0,255);
 
+//LED settings.
 CRGB defaultColors[4] = {BLUE, RED, BLUE, RED};
 uint8_t ledOrder[4] = {2, 3, 0, 1};
+uint8_t firstled[5] = {0, 6, 11, 17, NUM_LEDS}; 
 bool needLEDUpdate = false;
 
 void UpdateLEDColor(uint8_t button_num, bool pressed)
@@ -27,8 +29,8 @@ void UpdateLEDColor(uint8_t button_num, bool pressed)
   button_num = ledOrder[button_num-1]; //remap to clockwise around pad.
   CRGB off = defaultColors[button_num];
   CRGB color = pressed ? WHITE : off;
-  int start_index = (button_num) * LED_PER_ARROW;
-  int end_index = start_index + LED_PER_ARROW;
+  int start_index = firstled[button_num];
+  int end_index = firstled[button_num+1];
   for (int i = start_index; i < end_index; i++)
   {
     leds[i] = color;
