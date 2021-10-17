@@ -1,6 +1,7 @@
 #include <FastLED.h>
 #include <Joystick.h>
 #include <inttypes.h>
+#include <EEPROMex.h>
 
 #if !defined(__AVR_ATmega32U4__) && !defined(__AVR_ATmega328P__) && \
     !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__)
@@ -458,6 +459,41 @@ Sensor kSensors[] = {
 };
 const size_t kNumSensors = sizeof(kSensors)/sizeof(Sensor);
 
+/*=====================================================================
+ * EEPROM code
+ *====================================================================*/
+bool needWriteEEPROM = false;
+long lastWriteEEPROM = millis();
+
+inline bool ShouldWriteEEPROM()
+{
+  return needWriteEEPROM && (millis() - lastWriteEEPROM > 5000);
+}
+
+void WriteIntsToEEPROM(int offset)
+{
+    for (int i = 0; i < kNumSensors; i++) {
+        EEPROM.updateInt(offset + i*sizeof(int), kSensors[i].GetThreshold());
+    }
+    needWriteEEPROM = false;
+    lastWriteEEPROM = millis();
+}
+
+void ReadIntsFromEEPROM(int offset)
+{
+    for (int i = 0; i < kNumSensors; i++) {
+        int16_t value = EEPROM.readInt(offset + i*sizeof(int));
+        if (value != 0xFFFF) // default value
+        {
+            kSensors[i].UpdateThreshold(value);
+        }
+    }    
+}
+
+
+
+
+
 /*===========================================================================*/
 
 class SerialProcessor {
@@ -506,7 +542,9 @@ class SerialProcessor {
     if (sensor_index < 0 || sensor_index >= kNumSensors) { return; }
 
     kSensors[sensor_index].UpdateThreshold(
-        strtoul(buffer_ + 1, nullptr, 10));
+        strtoul(buffer_ + 1, nullptr, 10)
+    );
+    needWriteEEPROM = true;
     PrintThresholds();
   }
 
@@ -539,6 +577,8 @@ class SerialProcessor {
    char buffer_[kBufferSize];
 };
 
+
+
 /*===========================================================================*/
 
 SerialProcessor serialProcessor;
@@ -564,7 +604,10 @@ void setup() {
     // Button numbers should start with 1.
     kSensors[i].Init(i + 1);
   }
+  ReadIntsFromEEPROM(0);
 }
+
+
 
 void loop() {
   unsigned long startMicros = micros();
@@ -593,5 +636,11 @@ void loop() {
 
   if (loopTime == -1) {
     loopTime = micros() - startMicros;
+  }
+
+  //save eeprom every 5 seconds if necessary.
+  if (ShouldWriteEEPROM())
+  {
+    WriteIntsToEEPROM(0);
   }
 }
