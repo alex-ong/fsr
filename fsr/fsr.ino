@@ -472,7 +472,7 @@ inline bool ShouldWriteEEPROM()
 
 void WriteIntsToEEPROM(int offset)
 {
-    for (int i = 0; i < kNumSensors; i++) {
+    for (uint8_t i = 0; i < kNumSensors; i++) {
         EEPROM.updateInt(offset + i*sizeof(int), kSensors[i].GetThreshold());
     }
     needWriteEEPROM = false;
@@ -481,8 +481,8 @@ void WriteIntsToEEPROM(int offset)
 
 void ReadIntsFromEEPROM(int offset)
 {
-    for (int i = 0; i < kNumSensors; i++) {
-        int16_t value = EEPROM.readInt(offset + i*sizeof(int));
+    for (uint8_t i = 0; i < kNumSensors; i++) {
+        uint16_t value = EEPROM.readInt(offset + i*sizeof(int));
         if (value != 0xFFFF) // default value
         {
             kSensors[i].UpdateThreshold(value);
@@ -539,7 +539,7 @@ class SerialProcessor {
     if (bytes_read < 2 || bytes_read > 5) { return; }
 
     size_t sensor_index = buffer_[0] - '0';
-    if (sensor_index < 0 || sensor_index >= kNumSensors) { return; }
+    if (sensor_index >= kNumSensors) { return; }
 
     kSensors[sensor_index].UpdateThreshold(
         strtoul(buffer_ + 1, nullptr, 10)
