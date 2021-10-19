@@ -24,12 +24,13 @@ CRGB defaultColors[4] = {BLUE, RED, BLUE, RED};
 uint8_t ledOrder[4] = {2, 3, 0, 1};
 uint8_t firstled[5] = {0, 6, 11, 17, NUM_LEDS}; 
 bool needLEDUpdate = false;
-
+bool muteLEDs = false;
 void UpdateLEDColor(uint8_t button_num, bool pressed)
 {
   button_num = ledOrder[button_num-1]; //remap to clockwise around pad.
-  CRGB off = defaultColors[button_num];
-  CRGB color = pressed ? WHITE : off;
+  CRGB defaultColor = defaultColors[button_num];
+  CRGB color = pressed ? WHITE : defaultColor;
+  color = muteLEDs ? color : CRGB(0,0,0);
   int start_index = firstled[button_num];
   int end_index = firstled[button_num+1];
   for (int i = start_index; i < end_index; i++)
@@ -523,13 +524,21 @@ class SerialProcessor {
         case 'T':
           PrintThresholds();
           break;
+        case 'l':
+        case 'L':
+          ToggleLEDs();
         default:
           UpdateAndPrintThreshold(bytes_read);
           break;
       }
     }  
   }
-
+  
+  void ToggleLEDs()
+  {
+    muteLEDs = !muteLEDs;
+  }
+  
   void UpdateAndPrintThreshold(size_t bytes_read) {
     // Need to specify:
     // Sensor number + Threshold value.
