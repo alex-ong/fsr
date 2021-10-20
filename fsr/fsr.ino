@@ -9,9 +9,8 @@
 #endif
 
 
-#define LED_PIN     10
-#define NUM_LEDS    24
-#define LED_PER_ARROW (NUM_LEDS/4)
+#define LED_PIN     9
+#define NUM_LEDS    23
 
 CRGB leds[NUM_LEDS];
 #define WHITE_LIMIT  64
@@ -30,7 +29,7 @@ void UpdateLEDColor(uint8_t button_num, bool pressed)
   button_num = ledOrder[button_num-1]; //remap to clockwise around pad.
   CRGB defaultColor = defaultColors[button_num];
   CRGB color = pressed ? WHITE : defaultColor;
-  color = muteLEDs ? color : CRGB(0,0,0);
+  color = muteLEDs ? CRGB(0,0,0): color;
   int start_index = firstled[button_num];
   int end_index = firstled[button_num+1];
   for (int i = start_index; i < end_index; i++)
@@ -527,6 +526,7 @@ class SerialProcessor {
         case 'l':
         case 'L':
           ToggleLEDs();
+          break;
         default:
           UpdateAndPrintThreshold(bytes_read);
           break;
@@ -537,6 +537,11 @@ class SerialProcessor {
   void ToggleLEDs()
   {
     muteLEDs = !muteLEDs;
+    needLEDUpdate = true;
+    for (int i = 1; i < 5; i++)
+    {
+      UpdateLEDColor(i, false);
+    }
   }
   
   void UpdateAndPrintThreshold(size_t bytes_read) {

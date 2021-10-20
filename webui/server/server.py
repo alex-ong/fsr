@@ -16,7 +16,7 @@ from aiohttp.web import json_response
 logger = logging.getLogger(__name__)
 
 # Edit this to match the serial port name shown in Arduino IDE
-SERIAL_PORT = "COM5"
+SERIAL_PORT = "COM4"
 HTTP_PORT = 5000
 
 # Threads for the serial reader and writer.
