@@ -1,3 +1,4 @@
+#include "FastADC.h"
 #include <FastLED.h>
 #include <Joystick.h>
 #include <inttypes.h>
@@ -9,16 +10,6 @@
 #endif
 
 #define FASTADC 1
-
-// defines for setting and clearing register bits
-#ifndef cbi
-  #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
-#endif
-#ifndef sbi
-  #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
-#endif
-
-
 #define LED_PIN     9
 #define NUM_LEDS    23
 
@@ -535,7 +526,7 @@ class SerialProcessor {
           break;
         case 'l':
         case 'L':
-          ToggleLEDs();
+          SetLEDs(bytes_read);
           break;
         default:
           UpdateAndPrintThreshold(bytes_read);
@@ -543,15 +534,31 @@ class SerialProcessor {
       }
     }  
   }
-  
-  void ToggleLEDs()
+
+  // L -- toggle leds
+  // L1 -- turn leds on
+  // L0 -- turn leds off
+  void SetLEDs(size_t bytes_read)
   {
-    muteLEDs = !muteLEDs;
+    if (bytes_read == 1)
+    {
+      muteLEDs = !muteLEDs;
+    } 
+    else
+    {
+      muteLEDs = buffer_[1] - '0' != 0;
+    }
+    
     needLEDUpdate = true;
-    for (int i = 1; i <= kNumSensors; i++)
+    for (int i = 1; i < 5; i++)
     {
       UpdateLEDColor(i, false);
     }
+  }
+  
+  void ToggleLEDs()
+  {
+    SetLEDs(!muteLEDs);    
   }
   
   void UpdateAndPrintThreshold(size_t bytes_read) {
@@ -615,24 +622,22 @@ long loopTime = -1;
 
 void setup() {
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
+
+  for (int i = 1; i < 5; i++)
+  {
+    UpdateLEDColor(i, false);
+  }
+
+  FastLED.show();
   serialProcessor.Init(kBaudRate);
   ButtonStart();
   for (size_t i = 0; i < kNumSensors; ++i) {
     // Button numbers should start with 1.
     kSensors[i].Init(i + 1);
-	UpdateLEDColor(i+1, false);
   }
-  FastLED.show();
   ReadIntsFromEEPROM(0);
 
-  #if FASTADC
-    // set prescale to 16. s == 1, x ==0 from prescale table.
-    // 16 == 78000 hz, default is 128 which is 9600hz
-    // https://github.com/teejusb/fsr/issues/26
-    sbi(ADCSRA,ADPS2) ;
-    cbi(ADCSRA,ADPS1) ;
-    cbi(ADCSRA,ADPS0) ;
-  #endif
+  SetFastADC();
 
 }
 

@@ -7,14 +7,12 @@ eeprom so you can store pad sensitivity inside
 """
 
 # try to import pyserial
-
+import sys
 try:
     import serial
 except ImportError:
     print("Please check readme.md for installation and running instructions!")
     input("Press enter to continue...")
-    import sys
-
     sys.exit()
 
 from serial.tools import list_ports
@@ -61,12 +59,20 @@ class SerialPort:
             lines_read += 1
         return lines
 
-    def port_write_led(self):
-        values = b'l'
-        self.port.write(values)
+    def port_write_led(self, message):
+        print("writing ", message)
+        self.port.write(message)
         
 if __name__ == "__main__":
     sp = SerialPort()
     sp.connect()
-    sp.port_write_led();
+    if len(sys.argv) >= 2:
+        if sys.argv[1] in ['1', 'on']:
+            sp.port_write_led(b'L1')
+        elif sys.argv[1] in ['0', 'off']:
+            sp.port_write_led(b'L0')
+        else:
+            sp.port_write_led(b'L')
+    else:
+        sp.port_write_led(b'L') #toggle
     print('written')
