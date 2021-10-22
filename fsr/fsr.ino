@@ -546,7 +546,7 @@ class SerialProcessor {
     } 
     else
     {
-      muteLEDs = buffer_[1] - '0' != 0;
+      muteLEDs = buffer_[1] - '0' == 0;
     }
     
     needLEDUpdate = true;
