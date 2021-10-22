@@ -548,7 +548,7 @@ class SerialProcessor {
   {
     muteLEDs = !muteLEDs;
     needLEDUpdate = true;
-    for (int i = 1; i < 5; i++)
+    for (int i = 1; i <= kNumSensors; i++)
     {
       UpdateLEDColor(i, false);
     }
@@ -615,19 +615,14 @@ long loopTime = -1;
 
 void setup() {
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
-
-  for (int i = 1; i < 5; i++)
-  {
-    UpdateLEDColor(i, false);
-  }
-
-  FastLED.show();
   serialProcessor.Init(kBaudRate);
   ButtonStart();
   for (size_t i = 0; i < kNumSensors; ++i) {
     // Button numbers should start with 1.
     kSensors[i].Init(i + 1);
+	UpdateLEDColor(i+1, false);
   }
+  FastLED.show();
   ReadIntsFromEEPROM(0);
 
   #if FASTADC
