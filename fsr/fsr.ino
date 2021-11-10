@@ -461,12 +461,20 @@ class Sensor {
 //   Sensor(A3),
 //   Sensor(A4),
 // };
+SensorState leftState;
+SensorState downState;
+SensorState upState;
+SensorState rightState;
 
 Sensor kSensors[] = {
-  Sensor(A0),
-  Sensor(A1),
-  Sensor(A2),
-  Sensor(A3),
+  Sensor(A10,&leftState), // left close?
+  Sensor(A3,&leftState), //left far
+  Sensor(A2,&downState), //down close    
+  Sensor(A8,&downState), //down far  
+  Sensor(A0,&upState), //up close
+  Sensor(A1,&upState), //up far
+  Sensor(A7,&rightState), // right close
+  Sensor(A6,&rightState), //right far
 };
 const size_t kNumSensors = sizeof(kSensors)/sizeof(Sensor);
 

@@ -25,7 +25,7 @@ write_thread = None
 thread_stop_event = threading.Event()
 
 # Amount of panels.
-num_panels = 4
+num_panels = 8
 
 # Initialize panel ids.
 sensor_numbers = range(num_panels)

@@ -22,7 +22,7 @@ import {
 } from "react-router-dom";
 
 // Amount of panels.
-const num_panels = 4;
+const num_panels = 8;
 
 // Keep track of the current thresholds fetched from the backend.
 // Make it global since it's used by many components.
