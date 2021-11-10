@@ -4,11 +4,13 @@
 #include <inttypes.h>
 #include <EEPROMex.h>
 
+#define INVERSE_VCC 1
 #if !defined(__AVR_ATmega32U4__) && !defined(__AVR_ATmega328P__) && \
     !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__)
   #define CAN_AVERAGE //not avr
 #endif
 
+#define USE_WS2812B 1
 #define FASTADC 1
 #define LED_PIN     9
 #define NUM_LEDS    23
@@ -27,6 +29,7 @@ bool needLEDUpdate = false;
 bool muteLEDs = false;
 void UpdateLEDColor(uint8_t button_num, bool pressed)
 {
+  
   button_num = ledOrder[button_num-1]; //remap to clockwise around pad.
   CRGB defaultColor = defaultColors[button_num];
   CRGB color = pressed ? WHITE : defaultColor;
@@ -47,13 +50,17 @@ void ButtonStart() {
 }
 void ButtonPress(uint8_t button_num) {
   Joystick.pressButton(button_num);
+  #if USE_WS2812B
   UpdateLEDColor(button_num, true);
   needLEDUpdate=true;
+  #endif
 }
 void ButtonRelease(uint8_t button_num) {
   Joystick.releaseButton(button_num);
+  #if USE_WS2812B
   UpdateLEDColor(button_num, false);
   needLEDUpdate=true;
+  #endif
 }
 
 
@@ -361,7 +368,10 @@ class Sensor {
     }
 
     int16_t sensor_value = analogRead(pin_value_);
-
+    #if INVERSE_VCC
+      sensor_value = 1024 - sensor_value;
+    #endif
+    
     #if defined(CAN_AVERAGE)
       // Fetch the updated Weighted Moving Average.
       cur_value_ = moving_average_.GetAverage(sensor_value) - offset_;
@@ -548,12 +558,14 @@ class SerialProcessor {
     {
       muteLEDs = buffer_[1] - '0' == 0;
     }
-    
+    #if USE_WS2812B
     needLEDUpdate = true;
+    
     for (int i = 1; i < 5; i++)
     {
       UpdateLEDColor(i, false);
     }
+    #endif
   }
   
   void ToggleLEDs()
@@ -661,10 +673,12 @@ void loop() {
     lastSend = startMicros;
     
     Joystick.sendState();
-    if (needLEDUpdate) {
-      FastLED.show();
-      needLEDUpdate = false;
-    }
+    #if USE_WS2812B
+      if (needLEDUpdate) {
+        FastLED.show();
+        needLEDUpdate = false;
+      }
+    #endif
     
   }
 
