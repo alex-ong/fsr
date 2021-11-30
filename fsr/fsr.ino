@@ -4,7 +4,7 @@
 #include <inttypes.h>
 #include <EEPROMex.h>
 
-#define INVERSE_VCC 1
+#define INVERSE_VCC 0
 #if !defined(__AVR_ATmega32U4__) && !defined(__AVR_ATmega328P__) && \
     !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__)
   #define CAN_AVERAGE //not avr
@@ -12,7 +12,7 @@
 
 #define USE_WS2812B 1
 #define FASTADC 1
-#define LED_PIN     9
+#define LED_PIN     15
 #define NUM_LEDS    23
 
 CRGB leds[NUM_LEDS];
@@ -23,7 +23,7 @@ CRGB BLUE = CRGB(0,0,255);
 
 //LED settings.
 CRGB defaultColors[4] = {BLUE, RED, BLUE, RED};
-uint8_t ledOrder[4] = {2, 3, 0, 1};
+uint8_t ledOrder[4] = {3, 2, 0, 1};
 uint8_t firstled[5] = {0, 6, 11, 17, NUM_LEDS}; 
 bool needLEDUpdate = false;
 bool muteLEDs = false;
@@ -463,8 +463,8 @@ class Sensor {
 // };
 
 Sensor kSensors[] = {
-  Sensor(A0),
   Sensor(A1),
+  Sensor(A0),
   Sensor(A2),
   Sensor(A3),
 };
