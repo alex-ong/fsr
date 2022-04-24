@@ -28,8 +28,7 @@
 bool needLEDUpdate = false;
 bool muteLEDs = false;
 void UpdateLEDColor(uint8_t button_num, bool pressed)
-{
-  
+{  
   button_num = ledOrder[button_num-1]; //remap to clockwise around pad.
   CRGB defaultColor = defaultColors[button_num];
   CRGB color = pressed ? WHITE : defaultColor;
@@ -464,10 +463,10 @@ class Sensor {
 // };
 
 Sensor kSensors[] = {
-  Sensor(A1),
-  Sensor(A0),
-  Sensor(A2),
-  Sensor(A3),
+  Sensor(A1), //left
+  Sensor(A0), //down
+  Sensor(A2), //up
+  Sensor(A3), //right
 };
 const size_t kNumSensors = sizeof(kSensors)/sizeof(Sensor);
 
