@@ -4,27 +4,27 @@
 #include <inttypes.h>
 #include <EEPROMex.h>
 
-#define INVERSE_VCC 0
+
 #if !defined(__AVR_ATmega32U4__) && !defined(__AVR_ATmega328P__) && \
     !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__)
   #define CAN_AVERAGE //not avr
 #endif
 
-#define USE_WS2812B 1
+
+#define TRAVEL 0
+#define FOLDING 1
+
+//choose pad here
+#define CHOSEN_PAD (TRAVEL)
+#if CHOSEN_PAD == TRAVEL
+  #include "travel.h"
+#elif CHOSEN_PAD == FOLDING
+  #include "folding.h"
+#endif
+
 #define FASTADC 1
-#define LED_PIN     15
-#define NUM_LEDS    23
 
-CRGB leds[NUM_LEDS];
-#define WHITE_LIMIT  64
-CRGB WHITE = CRGB(WHITE_LIMIT,WHITE_LIMIT,WHITE_LIMIT);
-CRGB RED = CRGB(255,0,0);
-CRGB BLUE = CRGB(0,0,255);
 
-//LED settings.
-CRGB defaultColors[4] = {BLUE, RED, BLUE, RED};
-uint8_t ledOrder[4] = {3, 2, 0, 1};
-uint8_t firstled[5] = {0, 6, 11, 17, NUM_LEDS}; 
 bool needLEDUpdate = false;
 bool muteLEDs = false;
 void UpdateLEDColor(uint8_t button_num, bool pressed)
@@ -48,18 +48,19 @@ void ButtonStart() {
   // Use Joystick.begin() for everything that's not Teensy 2.0.
   Joystick.begin(false);
 }
+
 void ButtonPress(uint8_t button_num) {
   Joystick.pressButton(button_num);
-  #if USE_WS2812B
-  UpdateLEDColor(button_num, true);
-  needLEDUpdate=true;
+  #if USE_LEDS
+    UpdateLEDColor(button_num, true);
+    needLEDUpdate=true;
   #endif
 }
 void ButtonRelease(uint8_t button_num) {
   Joystick.releaseButton(button_num);
-  #if USE_WS2812B
-  UpdateLEDColor(button_num, false);
-  needLEDUpdate=true;
+  #if USE_LEDS
+    UpdateLEDColor(button_num, false);
+    needLEDUpdate=true;
   #endif
 }
 
@@ -558,7 +559,7 @@ class SerialProcessor {
     {
       muteLEDs = buffer_[1] - '0' == 0;
     }
-    #if USE_WS2812B
+    #if USE_LEDS
     needLEDUpdate = true;
     
     for (int i = 1; i < 5; i++)
@@ -633,8 +634,10 @@ unsigned long lastSend = 0;
 long loopTime = -1;
 
 void setup() {
-  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
 
+  InitializeLEDs();
+  
+    
   for (int i = 1; i < 5; i++)
   {
     UpdateLEDColor(i, false);
@@ -673,7 +676,9 @@ void loop() {
     lastSend = startMicros;
     
     Joystick.sendState();
-    #if USE_WS2812B
+    // send the leds directly after sending joystick.
+    // note that WS2812B takes 1.5ms to send :(
+    #if USE_LEDS
       if (needLEDUpdate) {
         FastLED.show();
         needLEDUpdate = false;
