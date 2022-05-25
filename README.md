@@ -51,11 +51,13 @@ Follow a guide like [fsr-pad-guide](https://github.com/Sereni/fsr-pad-guide) or 
     - Install [yarn](https://classic.yarnpkg.com/en/docs/install#windows-stable). A quick way to do this is with NPM: `npm install -g yarn`
 1. Within [server.py](./webui/server/server.py), edit the `SERIAL_PORT` constant to match the serial port shown in the Arduino IDE (e.g. it might look like `"/dev/ttyACM0"` or `"COM1"`)
     - You also may need to [modify](https://github.com/teejusb/fsr/pull/1#discussion_r514585060) the `sensor_numbers` variable.
+    - If you have a weird number of sensors (e.g. 8) then edit [server.py](./webui/server/server.py) and [app.js](./webui/src/app.js) and change num_panels
 1. Open a command prompt (or terminal) and navigate to `./webui/server` with `cd webui/server`
 1. Run `python -m venv venv` (on Windows you may need to replace `python` with `py`)
 1. Run `venv\Scripts\activate` (on Linux you run `source venv/bin/activate`)
 1. Run `pip install -r requirements.txt` to install dependencies
 1. Then move to the `./webui` directory by doing `cd ..`
+
 1. Run `yarn install && yarn build && yarn start-api`
     - On Linux, you'll also need to edit the `start-api` script in `./webui/package.json` to reference `venv/bin/flask` instead of `venv/Scripts/flask`
 
