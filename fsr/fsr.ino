@@ -1,5 +1,5 @@
 #include "FastADC.h"
-#include <FastLED.h>
+
 #include <Joystick.h>
 #include <inttypes.h>
 #include <EEPROMex.h>
@@ -13,22 +13,28 @@
 
 #define TRAVEL 0
 #define FOLDING 1
+#define JUNACIOUS 2
 
 //choose pad here
-#define CHOSEN_PAD (TRAVEL)
+#define CHOSEN_PAD (JUNACIOUS)
 #if CHOSEN_PAD == TRAVEL
   #include "travel.h"
 #elif CHOSEN_PAD == FOLDING
   #include "folding.h"
+#elif CHOSEN_PAD == JUNACIOUS
+  #include "junacious.h"
 #endif
 
 #define FASTADC 1
-
+#if USE_LEDS
+  #include <FastLED.h>
+#endif
 
 bool needLEDUpdate = false;
 bool muteLEDs = false;
 void UpdateLEDColor(uint8_t button_num, bool pressed)
 {  
+  #if USE_LEDS    
   button_num = ledOrder[button_num-1]; //remap to clockwise around pad.
   CRGB defaultColor = defaultColors[button_num];
   CRGB color = pressed ? WHITE : defaultColor;
@@ -39,6 +45,7 @@ void UpdateLEDColor(uint8_t button_num, bool pressed)
   {
     leds[i] = color;
   }
+  #endif
 }
 
 Joystick_ Joystick; //create the joystick
@@ -67,111 +74,14 @@ void ButtonRelease(uint8_t button_num) {
 
 // Default threshold value for each of the sensors.
 const int16_t kDefaultThreshold = 1000;
-// Max window size for both of the moving averages classes.
-const size_t kWindowSize = 50;
 // Baud rate used for Serial communication. Technically ignored by Teensys.
 const long kBaudRate = 115200;
-// Max number of sensors per panel.
-// NOTE(teejusb): This is arbitrary, if you need to support more sensors
-// per panel then just change the following number.
-const size_t kMaxSharedSensors = 2;
+
+
 // Button numbers should start with 1 (Button0 is not a valid Joystick input).
 // Automatically incremented when creating a new SensorState.
 uint8_t curButtonNum = 1;
 
-/*===========================================================================*/
-
-// EXPERIMENTAL. Used to turn on the lights feature. Note, this might conflict
-// some existing sensor pins so if you see some weird behavior it might be
-// because of this. Uncomment the following line to enable the feature.
-
-// #define ENABLE_LIGHTS
-
-// We don't want to use digital pins 0 and 1 as they're needed for Serial
-// communication so we start curLightPin from 2.
-// Automatically incremented when creating a new SensorState.
-#if defined(ENABLE_LIGHTS)
-  uint8_t curLightPin = 2;
-#endif
-
-/*===========================================================================*/
-
-// Calculates the Weighted Moving Average for a given period size.
-// Values provided to this class should fall in [−32,768, 32,767] otherwise it
-// may overflow. We use a 32-bit integer for the intermediate sums which we
-// then restrict back down to 16-bits.
-class WeightedMovingAverage {
- public:
-  WeightedMovingAverage(size_t size) :
-      size_(min(size, kWindowSize)), cur_sum_(0), cur_weighted_sum_(0),
-      values_{}, cur_count_(0) {}
-
-  int16_t GetAverage(int16_t value) {
-    // Add current value and remove oldest value.
-    // e.g. with value = 5 and cur_count_ = 0
-    // [4, 3, 2, 1] -> 10 becomes 10 + 5 - 4 = 11 -> [5, 3, 2, 1]
-    int32_t next_sum = cur_sum_ + value - values_[cur_count_];
-    // Update weighted sum giving most weight to the newest value.
-    // [1*4, 2*3, 3*2, 4*1] -> 20 becomes 20 + 4*5 - 10 = 30
-    //     -> [4*5, 1*3, 2*2, 3*1]
-    // Subtracting by cur_sum_ is the same as removing 1 from each of the weight
-    // coefficients.
-    int32_t next_weighted_sum = cur_weighted_sum_ + size_ * value - cur_sum_;
-    cur_sum_ = next_sum;
-    cur_weighted_sum_ = next_weighted_sum;
-    values_[cur_count_] = value;
-    cur_count_ = (cur_count_ + 1) % size_;
-    // Integer division is fine here since both the numerator and denominator
-    // are integers and we need to return an int anyways. Off by one isn't
-    // substantial here.
-    // Sum of weights = sum of all integers from [1, size_]
-    return next_weighted_sum/((size_ * (size_ + 1)) / 2);
-  }
-
-  // Delete default constructor. Size MUST be explicitly specified.
-  WeightedMovingAverage() = delete;
-
- private:
-  size_t size_;
-  int32_t cur_sum_;
-  int32_t cur_weighted_sum_;
-  // Keep track of all values we have in a circular array.
-  int16_t values_[kWindowSize];
-  size_t cur_count_;
-};
-
-// Calculates the Hull Moving Average. This is one of the better smoothing
-// algorithms that will smooth the input values without wildly distorting the
-// input values while still being responsive to input changes.
-//
-// The algorithm is essentially:
-//   1. Calculate WMA of input values with a period of n/2 and double it.
-//   2. Calculate WMA of input values with a period of n and subtract it from
-//      step 1.
-//   3. Calculate WMA of the values from step 2 with a period of sqrt(2).
-//
-// HMA = WMA( 2 * WMA(input, n/2) - WMA(input, n), sqrt(n) )
-class HullMovingAverage {
- public:
-  HullMovingAverage(size_t size) :
-      wma1_(size/2), wma2_(size), hull_(sqrt(size)) {}
-
-  int16_t GetAverage(int16_t value) {
-    int16_t wma1_value = wma1_.GetAverage(value);
-    int16_t wma2_value = wma2_.GetAverage(value);
-    int16_t hull_value = hull_.GetAverage(2 * wma1_value - wma2_value);
-
-    return hull_value;
-  }
-
-  // Delete default constructor. Size MUST be explicitly specified.
-  HullMovingAverage() = delete;
-
- private:
-  WeightedMovingAverage wma1_;
-  WeightedMovingAverage wma2_;
-  WeightedMovingAverage hull_;
-};
 
 /*===========================================================================*/
 
@@ -180,19 +90,12 @@ class HullMovingAverage {
 // SensorState, they will all be evaluated first before triggering the event.
 class SensorState {
  public:
-  SensorState()
-      : num_sensors_(0),
-        #if defined(ENABLE_LIGHTS)
-        kLightsPin(curLightPin++),
-        #endif
-        kButtonNum(curButtonNum++) {
+  SensorState(): num_sensors_(0), kButtonNum(curButtonNum++) 
+  {
     for (size_t i = 0; i < kMaxSharedSensors; ++i) {
       sensor_ids_[i] = 0;
       individual_states_[i] = SensorState::OFF;
-    }
-    #if defined(ENABLE_LIGHTS)
-      pinMode(kLightsPin, OUTPUT);
-    #endif
+    }    
   }
 
   // Adds a new sensor to share this state with. If we try adding a sensor that
@@ -243,10 +146,7 @@ class SensorState {
             }
             if (turn_on) {
               ButtonPress(kButtonNum);
-              combined_state_ = SensorState::ON;
-              #if defined(ENABLE_LIGHTS)
-                digitalWrite(kLightsPin, HIGH);
-              #endif
+              combined_state_ = SensorState::ON;              
             }
           }
           break;
@@ -263,9 +163,6 @@ class SensorState {
             if (turn_off) {
               ButtonRelease(kButtonNum);
               combined_state_ = SensorState::OFF;
-              #if defined(ENABLE_LIGHTS)
-                digitalWrite(kLightsPin, LOW);
-              #endif
             }
           }
           break;
@@ -285,6 +182,7 @@ class SensorState {
   }
 
  private:
+  static const size_t kMaxSharedSensors = 2;
   // The collection of sensors shared with this state.
   uint8_t sensor_ids_[kMaxSharedSensors];
   // The number of sensors this state combines with.
@@ -303,11 +201,7 @@ class SensorState {
   // TODO(teejusb): Make this a user controllable variable.
   const int16_t kPaddingWidth = 1;
 
-  // The light pin this state corresponds to.
-  #if defined(ENABLE_LIGHTS)
-    const uint8_t kLightsPin;
-  #endif
-
+  
   // The button number this state corresponds to.
   const uint8_t kButtonNum;
 };
@@ -410,9 +304,6 @@ class Sensor {
     return user_threshold_;
   }
 
-  // Delete default constructor. Pin number MUST be explicitly specified.
-  Sensor() = delete;
- 
  private:
   // Ensures that Init() has been called at exactly once on this Sensor.
   bool initialized_;
@@ -446,29 +337,27 @@ class Sensor {
 /*===========================================================================*/
 
 // Defines the sensor collections and sets the pins for them appropriately.
-//
-// If you want to use multiple sensors in one panel, you will want to share
-// state across them. In the following example, the first and second sensors
-// share state. The maximum number of sensors that can be shared for one panel
-// is controlled by the kMaxSharedSensors constant at the top of this file, but
-// can be modified as needed.
-//
-// SensorState state1;
-// Sensor kSensors[] = {
-//   Sensor(A0, &state1),
-//   Sensor(A1, &state1),
-//   Sensor(A2),
-//   Sensor(A3),
-//   Sensor(A4),
-// };
 
-Sensor kSensors[] = {
-  Sensor(A1), //left
-  Sensor(A0), //down
-  Sensor(A2), //up
-  Sensor(A3), //right
-};
-const size_t kNumSensors = sizeof(kSensors)/sizeof(Sensor);
+//Declare array of sensorstates and raw sensors
+SensorState *kSensorStates[kNumSensorStates];
+Sensor *kSensors[kNumSensors];
+void InitSensors()
+{
+    //create annonymous sensor states
+  for (int i = 0; i < kNumSensorStates; i++)
+  {
+    kSensorStates[i] = new SensorState();
+  }
+  
+  //map sensors to sensor states
+  for (int i = 0; i < kNumSensors; i++)
+  {
+    kSensors[i] = new Sensor(sensorMapping1[i], kSensorStates[sensorMapping2[i]]);
+  }
+}
+
+
+ 
 
 /*=====================================================================
  * EEPROM code
@@ -484,7 +373,7 @@ inline bool ShouldWriteEEPROM()
 void WriteIntsToEEPROM(int offset)
 {
     for (uint8_t i = 0; i < kNumSensors; i++) {
-        EEPROM.updateInt(offset + i*sizeof(int), kSensors[i].GetThreshold());
+        EEPROM.updateInt(offset + i*sizeof(int), kSensors[i]->GetThreshold());
     }
     needWriteEEPROM = false;
     lastWriteEEPROM = millis();
@@ -496,7 +385,7 @@ void ReadIntsFromEEPROM(int offset)
         uint16_t value = EEPROM.readInt(offset + i*sizeof(int));
         if (value != 0xFFFF) // default value
         {
-            kSensors[i].UpdateThreshold(value);
+            kSensors[i]->UpdateThreshold(value);
         }
     }    
 }
@@ -584,7 +473,7 @@ class SerialProcessor {
     size_t sensor_index = buffer_[0] - '0';
     if (sensor_index >= kNumSensors) { return; }
 
-    kSensors[sensor_index].UpdateThreshold(
+    kSensors[sensor_index]->UpdateThreshold(
         strtoul(buffer_ + 1, nullptr, 10)
     );
     needWriteEEPROM = true;
@@ -593,7 +482,7 @@ class SerialProcessor {
 
   void UpdateOffsets() {
     for (size_t i = 0; i < kNumSensors; ++i) {
-      kSensors[i].UpdateOffset();
+      kSensors[i]->UpdateOffset();
     }
   }
 
@@ -601,7 +490,7 @@ class SerialProcessor {
     Serial.print("v");
     for (size_t i = 0; i < kNumSensors; ++i) {
       Serial.print(" ");
-      Serial.print(kSensors[i].GetCurValue());
+      Serial.print(kSensors[i]->GetCurValue());
     }
     Serial.print("\n");
   }
@@ -610,7 +499,7 @@ class SerialProcessor {
     Serial.print("t");
     for (size_t i = 0; i < kNumSensors; ++i) {
       Serial.print(" ");
-      Serial.print(kSensors[i].GetThreshold());
+      Serial.print(kSensors[i]->GetThreshold());
     }
     Serial.print("\n");
   }
@@ -635,19 +524,22 @@ long loopTime = -1;
 void setup() {
 
   InitializeLEDs();
-  
+  InitSensors();
     
   for (int i = 1; i < 5; i++)
   {
     UpdateLEDColor(i, false);
   }
-
-  FastLED.show();
+  
+  #if USE_LEDS
+    FastLED.show();
+  #endif
+  
   serialProcessor.Init(kBaudRate);
   ButtonStart();
   for (size_t i = 0; i < kNumSensors; ++i) {
     // Button numbers should start with 1.
-    kSensors[i].Init(i + 1);
+    kSensors[i]->Init(i + 1);
   }
   ReadIntsFromEEPROM(0);
 
@@ -668,7 +560,7 @@ void loop() {
   serialProcessor.CheckAndMaybeProcessData();
 
   for (size_t i = 0; i < kNumSensors; ++i) {
-    kSensors[i].EvaluateSensor(willSend);
+    kSensors[i]->EvaluateSensor(willSend);
   }
 
   if (willSend) {
